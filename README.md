@@ -1,43 +1,104 @@
-# 🚚 Supply Chain & Logistics Delivery Optimizer
+# 🚚 Supply Chain Delivery Analytics & Prescriptive Risk Optimizer
 
-A Power BI and SQL portfolio project analyzing delivery delays, carrier bottlenecks, and revenue at risk across global supply chain data.
+An end-to-end data analytics and machine learning project built to detect historical fulfillment bottlenecks, evaluate carrier delays, and predict high-risk shipments before they impact customers.
 
 ---
 
 ## What This Project Does
 
-When over half of a company's shipments arrive late, it isn't just an operational annoyance—it puts millions of dollars at risk. 
+When over half of a business's orders show up late, it quickly turns into a multi-million dollar problem. 
 
-I built this dashboard to figure out **why** shipments were getting delayed, **which shipping methods** were causing the biggest issues, and **how much money** was on the line.
+I built this project across two distinct phases to answer four core questions:
+1. **Where are our current delays coming from?** (Historical SQL & Power BI Analysis)
+2. **Which carriers and products present the highest financial risk?** (Root Cause Insights)
+3. **Can we predict which future shipments will be late?** (Machine Learning via Scikit-Learn)
+4. **How can operations teams proactively prevent delays?** (Prescriptive Power BI Risk Dashboard)
 
 ---
-### Key Executive Insights (From Dashboard)
-* **Total Revenue:** $3.68 Billion across 181,000+ analyzed orders.
-* **Late Delivery Rate %:** 55% overall delay rate (`0.55`).
-* **Revenue at Risk:** $2.01 Billion directly tied to delayed shipments.
-* **Primary Bottleneck:** First Class shipping is the leading failure point with a **95% late rate (`0.95`)**, followed by Second Class at **77% (`0.77`)**.
-* **High-Risk Products:** Products like *SOLE E25 Elliptical* (70% late rate) and *Ogio Race Golf Shoes* (69% late rate) suffer from severe fulfillment bottlenecks.
-* **Top Market Risk:** Europe ($0.60bn) and LATAM ($0.56bn) represent the highest revenue exposure due to delivery delays.
+
+## Key Business Insights
+
+* **Total Revenue Analyzed:** $3.68 Billion across 181,000+ fulfillment records.
+* **Late Delivery Rate:** 55% overall delay rate across the delivery network.
+* **Revenue at Risk:** $2.01 Billion directly tied to late and SLA-non-compliant orders.
+* **Carrier Bottlenecks:** First Class shipping failed most often with a **95% late rate**, followed by Second Class at **77%**.
+* **High-Exposure Markets:** Europe ($600M) and LATAM ($560M) represent the largest revenue exposure to fulfillment delays.
+
 ---
 
-## How I Built It (Data Pipeline)
+## Chronological Project Workflow
 
 ```text
-┌──────────────────────────┐      ┌──────────────────────────┐      ┌──────────────────────────┐
-│   PostgreSQL Database    │ ───► │  Power BI Data Model     │ ───► │   Interactive Dashboard  │
-│  (Data Prep & SQL View)  │      │ (Explicit DAX Measures)  │      │  (Executive & Details)   │
-└──────────────────────────┘      └──────────────────────────┘      └──────────────────────────┘
+┌──────────────────────────┐      ┌──────────────────────────┐      ┌──────────────────────────┐      ┌──────────────────────────┐
+│  1. PostgreSQL Database  │ ───► │  2. Power BI Dashboard 1 │ ───► │ 3. Python Jupyter Notebook│ ───► │  4. Power BI Dashboard 2 │
+│ (Data Cleaning & View)   │      │ (Historical Analysis)    │      │ (Machine Learning Pipeline)│      │ (ML Risk Optimizer)      │
+└──────────────────────────┘      └──────────────────────────┘      └──────────────────────────┘      └──────────────────────────┘
 ```
 
-1. **SQL View (`v_delivery_analysis`):** Cleaned and prepared the raw supply chain data in PostgreSQL. I wrote a `CASE` statement comparing actual delivery days against scheduled delivery days to create a binary `is_late` flag (`1` for late, `0` for on-time).
-2. **Data Modeling & DAX:** Created a dedicated `_Measures` table in Power BI to keep calculations organized. Wrote explicit DAX measures using `CALCULATE` for filter overrides and `DIVIDE` to safely handle division by zero.
-3. **Dashboard Design:** Structured the report in a way anyone opening it can go from high-level numbers down to individual order details in a few clicks.
+### Step 1: SQL Data Transformation (`v_delivery_analysis.sql`)
+Cleaned raw logistics data in PostgreSQL and calculated scheduled vs. actual shipping days using a `CASE` statement to generate a binary `is_late` target flag (`1` for late, `0` for on-time).
+
+<details>
+<summary><b>Click to expand PostgreSQL view script</b></summary>
+
+```sql
+CREATE VIEW v_delivery_analysis AS
+SELECT 
+    order_id,
+    order_item_id,
+    order_date,
+    shipping_date,
+    shipping_mode,
+    market,
+    order_region,
+    category_name,
+    product_name,
+    sales AS total_sales,
+    order_item_quantity,
+    days_for_shipping_real,
+    days_for_shipment_scheduled,
+    CASE 
+        WHEN days_for_shipping_real > days_for_shipment_scheduled THEN 1
+        ELSE 0
+    END AS is_late
+FROM raw_supply_chain_data;
+```
+
+</details>
+
+---
+
+### Step 2: Dashboard 1 — Historical Delivery Analysis
+Built an executive diagnostic report to analyze historical delay patterns, regional risk, and carrier performance:
+* **Top Executive Banner:** Displays key KPIs (*Total Revenue*, *Total Orders*, *Late Delivery Rate %*, and *Revenue at Risk*).
+* **Side-by-Side Root Cause Layout:**
+  * **Left Column:** Stacked visual cards analyzing delay rates by shipping mode (with dynamic red conditional formatting for modes exceeding 50% late rates) and revenue exposure by market.
+  * **Middle Column:** Visual breakdown of revenue at risk across product and order categories.
+  * **Right Column:** Granular order detail table for real-time investigation of specific late shipments.
+
+---
+
+### Step 3: Machine Learning & Predictive Modeling (Python / Jupyter)
+Transitioned from diagnostic to predictive analytics by building classification models directly inside a Jupyter Notebook:
+* **Feature Engineering & Preprocessing:** Encoded categorical features and scaled numerical metrics using Scikit-Learn pipelines.
+* **Sequential Hyperparameter Tuning:** Used 5-Fold Stratified Cross-Validation to tune tree counts (`n_estimators` up to 400) and tree depth (`max_depth`) and other features sequentially to control overfitting and balance variance.
+* **Architectures Evaluated:** Compared LightGBM Classifier performance against a Multi-Layer Perceptron (MLP) Neural Network (`hidden_layer_sizes=(128, 64, 32)`) and the baseline, Random Forest Classifier, with LightGBM giving the best overall results.
+* **Model Output:** Generated predicted late probabilities (`y_proba`) and late predictions (`y_pred`) for all test orders and exported them back into the data pipeline as 'csv' files.
+
+---
+
+### Step 4: Dashboard 2 — ML Prescriptive Risk Optimizer
+Created a forward-looking operational dashboard designed to help logistics managers act before delays happen:
+* **Dynamic Probability Threshold Slicer:** A top-level slider allowing operations teams to adjust risk sensitivity (e.g., filter down to shipments with `>70%` predicted delay risk).
+* **Real-time KPI Alerts:** Displays live counts of high-risk shipments and predicted late delivery percentages based on user threshold selection.
+* **Operational Risk Visuals:** Breaks down predicted risk across shipping modes and geographic regions.
+* **Risk Tier Breakdown Matrix:** Segmented orders and total revenue into 4 actionable risk buckets (*Critical Risk (>70%)*, *High Risk (50-70%)*, *Medium Risk (30-50%)*, and *Low Risk (<30%)*).
 
 ---
 
 ## Key DAX Measures
 
-All measures are isolated within a dedicated `_Measures` table:
+All business logic and KPI calculations are stored in a dedicated `_Measures` table in Power BI:
 
 <details>
 <summary><b>Click to expand DAX measures</b></summary>
@@ -78,59 +139,22 @@ CALCULATE(
 
 ---
 
-## SQL Data Transformation (`v_delivery_analysis.sql`)
-
-<details>
-<summary><b>Click to expand PostgreSQL view script</b></summary>
-
-```sql
-CREATE VIEW v_delivery_analysis AS
-SELECT 
-    order_id,
-    order_item_id,
-    order_date,
-    shipping_date,
-    shipping_mode,
-    market,
-    order_region,
-    category_name,
-    product_name,
-    sales AS total_sales,
-    order_item_quantity,
-    days_for_shipping_real,
-    days_for_shipment_scheduled,
-    CASE 
-        WHEN days_for_shipping_real > days_for_shipment_scheduled THEN 1
-        ELSE 0
-    END AS is_late
-FROM raw_supply_chain_data;
-```
-
-</details>
-
----
-
-## Dashboard Layout & Design Standards
-
-I designed the dashboard using a side-by-side executive layout to maximize horizontal analytical depth:
-
-* **Top Tier (Executive KPI Banner):** Displays high-level summaries (*Total Revenue*, *Total Orders*, *Late Delivery Rate %*, *Revenue at Risk*) formatted with clean 8px rounded container cards.
-* **Lower Tier (Side-by-Side Analytical Layout - Left to Right):**
-  * **Left Column (Root Cause Metrics):** Stacked visual cards analyzing risk by shipping mode (*Late Delivery Rate % by Shipping Mode* with dynamic conditional red formatting) and regional exposure (*Revenue at Risk by Market*).
-  * **Middle Column (Product Category Exposure):** A visual breakdown showing *Revenue at Risk by Product / Order Category* to pinpoint high-value inventory bottlenecks.
-  * **Right Column (Granular Order Grid):** A vertical detail table containing `order_id`, `market`, `shipping_mode`, and sales values so supply chain teams can inspect specific delayed shipments in real time.
-
----
-
 ## Repository Structure
 
 ```text
-├── power_bi     
-│   └── Supply_Chain_Delivery_Optimizer.pbix  #Power BI report file
+├── python/
+│   └── supply_chain_ml_analysis.ipynb      # ML preprocessing, model training & tuning notebook
+├── power_bi/
+│   ├── supply_chain_delivery_optimizer.pbix   # Dashboard 1: Diagnostic Report
+│   └── delivery_risk_ml.pbix      # Dashboard 2: ML Risk Optimizer
 ├── sql/
-│   └── v_delivery_analysis.sql               # PostgreSQL view creation script
+│   ├── 01_table_creation.sql     # PostgreSQL view creation scripts
+│   └── 02_data_exploration.sql 
+│   └── 03_data_exploration2.sql 
+│   └── 04_feature_engineering_and_creating_view.sql 
 ├── docs/
-│   └── dashboard_preview.png                 # Screenshot of the completed dashboard
+│   ├── dashboard_preview.png     # Screenshot of Dashboard 1
+│   └── ml_risk_optimizer_preview.png        # Screenshot of Dashboard 2
 └── README.md                                 # Project documentation
 ```
 
@@ -138,8 +162,12 @@ I designed the dashboard using a side-by-side executive layout to maximize horiz
 
 ## How to Run This Project Locally
 
-1. Load your raw supply chain dataset into your local PostgreSQL database.
-2. Run `sql/v_delivery_analysis.sql` to generate the required analytical view.
-3. Open `Supply_Chain_Delivery_Optimizer.pbix` in Power BI Desktop.
-4. Update your database connection under **Transform Data → Data source settings**.
-5. Click **Refresh** to load the data model.
+1. **Database Setup:** Load your raw logistics dataset into PostgreSQL and execute the files.
+2. **Historical Analysis:** Open `power_bi/supply_chain_delivery_optimizer.pbix` to explore the diagnostic dashboard.
+3. **Machine Learning Pipeline:** Run `python/supply_chain_ml_analysis.ipynb` sequentially to train models and generate predictions and prediction probabilities.
+4. **Prescriptive Optimizer:** Open `power_bi/delivery_risk_ml.pbix`, refresh the data connection, and test dynamic risk thresholds.
+
+
+### 📊 Data Source
+* **Dataset:** [DataCo Smart Supply Chain for Big Data (`DataCoSupplyChainDataset.csv`)](https://www.kaggle.com/) (Hosted on Kaggle)
+* **Scope:** 180,000+ registered transactional records covering supply chain operations, order fulfillment times, sales metrics, and shipping logistics.
